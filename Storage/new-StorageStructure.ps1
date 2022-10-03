@@ -6,7 +6,7 @@
 #Location of the resources created
     $location = "Eastus"
 #name of the storage account to be created or the existing storage account
-    $name = "catussafiles01"
+    $name = "catussafiles03"
 #-StorageAccountType Standard_LRS, Standard_ZRS, Standard_GRS, Standard_RAGRS, Premium_LRS, Premium_ZRS, Standard_GZRS, Standard_RAGZRS
     $StorageType = "Standard_LRS"
 #resourcegroup    
@@ -14,8 +14,11 @@
 #Sharename csv path
    $FSListPath = ".\shares.csv"
 
+#FileShare Quota in GB
+   [int]$FSQuota = 100
+
 ##Storage Sync Service name
-$StorageSyncServiceName ="CatuslabSync"
+   $StorageSyncServiceName ="SS-CatuslabSync-03"
  
 ##############################################################################################################################################################
 #Create $resourcegroup for storage account
@@ -24,7 +27,7 @@ Write-Host -ForegroundColor Green "Creating resourcegroup" $resourcegroup
       -Force `
       -Name $resourcegroup `
       -Location $location `
-      -Verbose `
+      -Verbose 
 #Create Storage Account
    New-AzStorageAccount `
       -Name $name `
@@ -44,17 +47,46 @@ Write-Host -ForegroundColor Green "Creating resourcegroup" $resourcegroup
          -StorageAccount $(Get-AzStorageAccount -ResourceGroupName $resourcegroup -Name $name) `
          -Name "share-$sharename" `
          -EnabledProtocol SMB `
-         -QuotaGiB 100 `
-         -Verbose 
+         -QuotaGiB $FSQuota `
+         -verbose 
+         #-WhatIf `
       Write-Host -ForegroundColor Green "share Share-$sharename has been created"
-      Start-Sleep -Seconds 5
    }
 
 
 #create Storage Sync Service
-write-host -ForegroundColor Green "Createing Storage Sync Service - SS-$name"
+write-host -ForegroundColor Green "Creating Storage Sync Service - $StorageSyncServiceName"
    New-AzStorageSyncService `
-      -Name "SS-$StorageSyncServiceName-01" `
+      -Name $StorageSyncServiceName `
       -Location $location `
       -ResourceGroupName $resourcegroup `
-      -Verbose
+      -Verbose 
+     # -WhatIf 
+#create storage sync service objects
+
+For ($i=0; $i -le 100; $i++) {
+   Start-Sleep -Milliseconds 500
+   Write-Progress -Activity "Prepairing Storage Objects" -Status "Current %: $i" -PercentComplete $i -CurrentOperation "Prepairing ..."
+}
+
+write-host -ForegroundColor Green
+   foreach ($sharename  in $FSList.sharename) 
+   {
+      Write-Host -ForegroundColor Magenta "Creating storage Sync group share-$sharename for Storage Sync Service"
+      New-AzStorageSyncGroup -ResourceGroupName $resourcegroup `
+         -Name "share-$sharename" `
+         -StorageSyncServiceName $StorageSyncServiceName `
+         -Verbose 
+      Write-Host -ForegroundColor Green "Storage sync group share-$sharename Created"
+      Start-Sleep -Seconds 5
+      New-AzStorageSyncCloudEndpoint `
+         -Name "$name-share-$sharename" `
+         -ResourceGroupName $resourcegroup `
+         -StorageAccountResourceId $(Get-AzStorageAccount -ResourceGroupName $resourcegroup -Name $name).Id `
+         -AzureFileShareName "share-$sharename" `
+         -StorageSyncServiceName $StorageSyncServiceName `
+         -SyncGroupName "share-$sharename" `
+         -Verbose 
+   }
+         
+   
