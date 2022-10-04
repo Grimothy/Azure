@@ -6,11 +6,11 @@
 #Location of the resources created
     $location = "Eastus"
 #name of the storage account to be created or the existing storage account
-    $name = "catussafiles03"
+    $name = "catussafiles02"
 #-StorageAccountType Standard_LRS, Standard_ZRS, Standard_GRS, Standard_RAGRS, Premium_LRS, Premium_ZRS, Standard_GZRS, Standard_RAGZRS
     $StorageType = "Standard_LRS"
 #resourcegroup    
-   $resourcegroup = "rg-catus-storageservices01"
+   $resourcegroup = "rg-catus-storageservices02"
 #Sharename csv path
    $FSListPath = ".\shares.csv"
 
@@ -18,7 +18,10 @@
    [int]$FSQuota = 100
 
 ##Storage Sync Service name
-   $StorageSyncServiceName ="SS-CatuslabSync-03"
+   $StorageSyncServiceName ="SS-CatuslabSync-02"
+
+   #Import CSV to get pre-defined sharenames
+   $FSList = Import-Csv -Path $FSListPath
  
 ##############################################################################################################################################################
 #Create $resourcegroup for storage account
@@ -37,8 +40,7 @@ Write-Host -ForegroundColor Green "Creating resourcegroup" $resourcegroup
       -StorageAccountType $StorageType `
       -AccessTier $tier `
       -Verbose 
-#Import CSV to get pre-defined sharenames
-   $FSList = Import-Csv -Path $FSListPath
+
 
     foreach ($sharename in $FSList.sharename )
    {
@@ -63,12 +65,12 @@ write-host -ForegroundColor Green "Creating Storage Sync Service - $StorageSyncS
       -Verbose 
      # -WhatIf 
 #create storage sync service objects
-
+<#
 For ($i=0; $i -le 100; $i++) {
-   Start-Sleep -Milliseconds 500
+   Start-Sleep -Milliseconds 2000
    Write-Progress -Activity "Prepairing Storage Objects" -Status "Current %: $i" -PercentComplete $i -CurrentOperation "Prepairing ..."
 }
-
+#>
 write-host -ForegroundColor Green
    foreach ($sharename  in $FSList.sharename) 
    {
@@ -77,16 +79,29 @@ write-host -ForegroundColor Green
          -Name "share-$sharename" `
          -StorageSyncServiceName $StorageSyncServiceName `
          -Verbose 
-      Write-Host -ForegroundColor Green "Storage sync group share-$sharename Created"
-      Start-Sleep -Seconds 5
-      New-AzStorageSyncCloudEndpoint `
-         -Name "$name-share-$sharename" `
-         -ResourceGroupName $resourcegroup `
-         -StorageAccountResourceId $(Get-AzStorageAccount -ResourceGroupName $resourcegroup -Name $name).Id `
-         -AzureFileShareName "share-$sharename" `
-         -StorageSyncServiceName $StorageSyncServiceName `
-         -SyncGroupName "share-$sharename" `
-         -Verbose 
    }
-         
    
+   foreach ($sharename  in $FSList.sharename) 
+   {
+     Write-Host -ForegroundColor Green "Storage sync group share-$sharename Created"
+      
+   New-AzStorageSyncCloudEndpoint `
+      -Name "$name-share-$sharename" `
+      -ResourceGroupName $resourcegroup `
+      -StorageAccountResourceId $(Get-AzStorageAccount -ResourceGroupName $resourcegroup -Name $name).Id `
+      -AzureFileShareName "share-$sharename" `
+      -StorageSyncServiceName $StorageSyncServiceName `
+      -SyncGroupName "share-$sharename" `
+      -Verbos
+      }
+   
+
+      #Clean up old resources
+      foreach ($sharename in $FSList.sharename)
+      {
+
+         Get-AzStorageSyncCloudEndpoint -ResourceGroupName $resourcegroup -StorageSyncServiceName $StorageSyncServiceName -SyncGroupName "share-$sharename" |Remove-AzStorageSyncCloudEndpoint -Verbose -Force
+         Get-AzStorageSyncGroup -ResourceGroupName $resourcegroup -StorageSyncServiceName $StorageSyncServiceName -Name "share-$sharename" | Remove-AzStorageSyncGroup -Verbose -Force
+      }
+      Get-AzStorageSyncService -ResourceGroupName $resourcegroup -Name $StorageSyncServiceName | Remove-AzStorageSyncService -Verbose -Force
+      Get-AzResourceGroup -ResourceGroupName $resourcegroup | Remove-AzResource -Force
