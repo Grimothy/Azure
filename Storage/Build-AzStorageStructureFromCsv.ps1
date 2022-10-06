@@ -62,7 +62,7 @@ foreach ($sharename in $FSList.sharename)
       Write-Progress -Activity "Building Azure file shares under storage account $name" -CurrentOperation "Processing share share-$sharename" -PercentComplete ($progress/$FSList.count*100) -Id 4 -ParentId 1
       New-AzRmStorageShare `
          -StorageAccount $(Get-AzStorageAccount -ResourceGroupName $resourcegroup -Name $name) `
-         -Name "share-$($sharename).tollo" `
+         -Name "share-$sharename" `
          -EnabledProtocol SMB `
          -QuotaGiB $FSQuota `
          -verbose 
