@@ -24,12 +24,16 @@
    $FSList = Import-Csv -Path $FSListPath
  
 ##############################################################################################################################################################
+#Begin Script
 
 Write-Progress -Activity "Creating Azure File and Sync Server Structure" -Status "Running..." -CurrentOperation "Prepairing" -PercentComplete 5 -Id 1
 
+#Convert variables to lowercase to confirm with naming conventions required by certain azure services
+$name = $name.ToLower()
+$StorageSyncServiceName =$StorageSyncServiceName.ToLower()
+
 #Create $resourcegroup for storage account
 Write-Progress -Activity "Building the resourge group - $resourcegroup" -CurrentOperation "Processing resource group $resourcegroup creation" -PercentComplete 50 -Id 2 -ParentId 1
-#Write-Host -ForegroundColor Green "Creating resourcegroup" $resourcegroup
     New-AzResourceGroup `
       -Force `
       -Name $resourcegroup `
@@ -52,18 +56,17 @@ Write-Progress -Activity "Building the resourge group - $resourcegroup" -Complet
 Write-Progress -Activity "Creating Azure File and Sync Server Structure" -Status "Running..." -PercentComplete 25 -Id 1
 
 $progress = 1
-foreach ($sharename in $FSList.sharename )
+foreach ($sharename in $FSList.sharename)
    {
-      #Write-Host -ForegroundColor Magenta "Creating Files share Share-$sharename under storage account $name"
+      $sharename = $sharename.ToLower()
       Write-Progress -Activity "Building Azure file shares under storage account $name" -CurrentOperation "Processing share share-$sharename" -PercentComplete ($progress/$FSList.count*100) -Id 4 -ParentId 1
       New-AzRmStorageShare `
          -StorageAccount $(Get-AzStorageAccount -ResourceGroupName $resourcegroup -Name $name) `
-         -Name "share-$sharename" `
+         -Name "share-$($sharename).tollo" `
          -EnabledProtocol SMB `
          -QuotaGiB $FSQuota `
          -verbose 
          #-WhatIf `
-      #Write-Host -ForegroundColor Green "share Share-$sharename has been created"
       $progress++
    }
    Write-Progress -Activity "Building Azure file shares under storage account $name" -Completed -PercentComplete 100 -Id 4 -ParentId 1
@@ -71,7 +74,6 @@ foreach ($sharename in $FSList.sharename )
 
 #create Storage Sync Service
 Write-Progress -Activity "Building Storage Sync Service - $StorageSyncServiceName"  -PercentComplete 50 -Id 5 -ParentId 1
-#write-host -ForegroundColor Green "Creating Storage Sync Service - $StorageSyncServiceName"
    New-AzStorageSyncService `
       -Name $StorageSyncServiceName `
       -Location $location `
@@ -80,19 +82,14 @@ Write-Progress -Activity "Building Storage Sync Service - $StorageSyncServiceNam
      # -WhatIf 
      Write-Progress -Activity "Building Storage Sync Service - $StorageSyncServiceName" -Completed  -PercentComplete 100 -Id 5 -ParentId 1
      Write-Progress -Activity "Creating Azure File and Sync Server Structure" -Status "Running..." -PercentComplete 75 -Id 1
-#create storage sync service objects
-<#
-For ($i=0; $i -le 100; $i++) {
-   Start-Sleep -Milliseconds 2000
-   Write-Progress -Activity "Prepairing Storage Objects" -Status "Current %: $i" -PercentComplete $i -CurrentOperation "Prepairing ..."
-}
-#>
+
+     #create storage sync service objects
 $progress = 1
 write-host -ForegroundColor Green
    foreach ($sharename  in $FSList.sharename) 
    {
+      $sharename = $sharename.ToLower()
       Write-Progress -Activity "Building Azure storage Sync group share-$sharename" -CurrentOperation "Processing Sync group share-$sharename" -PercentComplete ($progress/$FSList.count*100) -Id 6 -ParentId 1
-      #Write-Host -ForegroundColor Magenta "Creating storage Sync group share-$sharename for Storage Sync Service"
       New-AzStorageSyncGroup -ResourceGroupName $resourcegroup `
          -Name "share-$sharename" `
          -StorageSyncServiceName $StorageSyncServiceName `
@@ -109,8 +106,8 @@ write-host -ForegroundColor Green
    $progress = 1
    foreach ($sharename  in $FSList.sharename) 
    {
-     #Write-Host -ForegroundColor Green "Storage sync group share-$sharename Created"
-     Write-Progress -Activity "Building Azure storage sync CloudEndpoint" -CurrentOperation "Processing CloudEndpoint $name-share-$sharename for syncgroup share-$sharename " -PercentComplete ($progress/$FSList.count*100) -Id 6 -ParentId 1   
+      $sharename = $sharename.ToLower()
+      Write-Progress -Activity "Building Azure storage sync CloudEndpoint" -CurrentOperation "Processing CloudEndpoint $name-share-$sharename for syncgroup share-$sharename " -PercentComplete ($progress/$FSList.count*100) -Id 6 -ParentId 1   
       New-AzStorageSyncCloudEndpoint `
          -Name "$name-share-$sharename" `
          -ResourceGroupName $resourcegroup `
@@ -137,3 +134,4 @@ write-host -ForegroundColor Green
 
 
 #>
+Write-Host -ForegroundColor Magenta "If an error has occured during the cloudendpoint creation phase, you may need to run the script again. You do NOT need to delete any deployed resources"
