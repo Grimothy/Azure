@@ -6,18 +6,18 @@
 #Location of the resources created
     $location = "Eastus"
 #name of the storage account to be created or the existing storage account
-    $name = "catussafiles05"
+    $name = "catussafiles01"
 #-StorageAccountType Standard_LRS, Standard_ZRS, Standard_GRS, Standard_RAGRS, Premium_LRS, Premium_ZRS, Standard_GZRS, Standard_RAGZRS
     $StorageType = "Standard_LRS"
 #resourcegroup    
-   $resourcegroup = "rg-catus-storageservices05"
+   $resourcegroup = "rg-catus-demostorageservices"
 
 
 #FileShare Quota in GB
    [int]$FSQuota = 100
 
 #Storage Sync Service name
-   $StorageSyncServiceName ="SS-CatuslabSync-05"
+   $StorageSyncServiceName ="SS-Catus-05"
 #Sharename csv path
    $FSListPath = ".\shares.csv"
    #Import CSV to get pre-defined sharenames
